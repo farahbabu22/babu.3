@@ -6,6 +6,9 @@
 #include <signal.h>
 #include <errno.h>
 
+#include "lib_monitor.h"
+
+
 int countProducers = 2;
 int countConsumers = 6;
 int timeoutLimit = 100;
@@ -52,6 +55,7 @@ int main(int argc, char *argv[]){
         switch(opt) {
             case 'h':
                     displayHelpMenu();
+                    printMonitor();
                     return 0;
                     break;
             case 'o':
@@ -76,5 +80,7 @@ int main(int argc, char *argv[]){
 
         }
     }
+
+    
     return 0;
 }
