@@ -11,6 +11,7 @@
 #define FREE_PROCESS 19
 #define CONSUMERS_WAITING 5
 #define CONSUMERS_WORKING 5
+#define MAX_PRODUCERS 6
 
 void produce();
 void consume();

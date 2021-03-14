@@ -17,6 +17,10 @@ int countConsumers = 6;
 int timeoutLimit = 100;
 char *logfile = "logfile";
 int shSMID; // shared semaphore id
+int shBufferID; // shared buffer id for shared memory functions
+int logID;
+char *shLogptr;
+int *shmptr;
 
 extern int errno;
 
@@ -53,6 +57,78 @@ void setSharedSemaphoreArray(){
     semctl(shSMID, CONSUMERS_WAITING, SETVAL, countConsumers);
     semctl(shSMID, CONSUMERS_WORKING, SETVAL, countConsumers);
 }
+
+
+void clearLogFileShm(){
+    if(shmdt(shLogptr) == -1){
+        perror("monitor.c: Error: Failed to detached logfile shm");
+    }
+    
+    if(shmctl(logID, IPC_RMID, NULL) == -1){
+        perror("monitor.c: Error: Failed to remove shared buffer segment");
+    }
+}
+void clearSharedMemory(){
+    if(shmdt(shmptr) == -1){
+        perror("monitor.c: Error: Failed to detach");
+    }
+
+    if(shmctl(shBufferID, IPC_RMID, NULL) == -1){
+        perror("monitor.c: Error: Failed to remove shared buffer segment");
+    }
+
+}
+
+void setBufferMemory(){
+    key_t shBufferKey = ftok("consumer.c", 'a');
+
+    shBufferID = shmget(shBufferKey, sizeof(int) * MAX_PRODUCERS, IPC_CREAT | 0666);
+
+    if(shBufferKey == -1){
+        perror("monitor.c: Error: Issue in creating shared memory for buffer");
+        clearSemaphore();
+        exit(EXIT_FAILURE);
+    }
+    shmptr = (int *)shmat(shBufferID, 0, 0);
+
+    if(shmptr == (int *) -1){
+        perror("monitor.c: Error: Issue in attaching to shared memory");
+        clearSemaphore();
+        clearSharedMemory();
+        exit(EXIT_FAILURE);
+    }
+
+    shmptr[NEXTIN] = 0;
+    shmptr[NEXTOUT] = 0;
+}
+
+void setLogFile(){
+    key_t logKey = ftok("lib_monitor.c", 'a');
+
+    logID = shmget(logKey, sizeof(char) * 64, IPC_CREAT | 0666);
+
+    if(logID == -1){
+        perror("monitor.c: Error: Issue with creating memory for sharing log file name");
+        clearSharedMemory();
+        clearSemaphore();
+        exit(EXIT_FAILURE);
+    }
+
+    shLogptr = (char *)shmat(logID, 0, 0);
+
+    if(shLogptr == (char *) -1){
+        perror("monitor.c: Error: Issue in attaching to shared memory for log file");
+        clearSemaphore();
+        clearSharedMemory();
+        exit(EXIT_FAILURE);
+    }
+
+    sprintf(shLogptr, "%s", logfile);
+
+
+
+}
+
 
 
 
@@ -135,7 +211,12 @@ int main(int argc, char *argv[]){
     //printf("Producers %d, Consumers %d", countProducers, countConsumers); DELETE
 
     setSharedSemaphoreArray();
+    setBufferMemory();
+    setLogFile();
+
+    clearSharedMemory();
     clearSemaphore();
+    clearLogFileShm();
 
     
     return 0;
