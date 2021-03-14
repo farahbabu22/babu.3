@@ -21,11 +21,19 @@ int shBufferID; // shared buffer id for shared memory functions
 int logID;
 char *shLogptr;
 int *shmptr;
+pid_t *pidList;
 
 extern int errno;
 
 void killAll(){
-    exit(EXIT_SUCCESS);
+
+    int i = 0;
+    for(i =0; i < MAXPROCESS; i++){
+        if(pidList[i] != 0){
+            kill(pidList[i], SIGKILL);
+        }
+    }
+    //exit(EXIT_SUCCESS);
 }
 
 void timerDone(){
@@ -129,6 +137,43 @@ void setLogFile(){
 
 }
 
+void removeProcessPID(pid_t p){
+    int i = 0;
+    for(i=0; i < MAXPROCESS; i++){
+        if(pidList[i] == p){
+            pidList[i] = 0;
+            break;
+        }
+    }
+}
+
+void childEvent(int signum){
+    pid_t pid;
+    while((pid = waitpid((pid_t)(-1), 0, WNOHANG)) > 0){
+        removeProcessPID(pid);
+        semWait(CONSUMERS_WORKING);
+        semSignal(FREE_PROCESS);
+    }
+}
+
+
+void initalizeProcessList(){
+    int i = 0;
+    pidList = malloc(sizeof(pid_t)*MAXPROCESS);
+    for(i=0; i < MAXPROCESS; i++){
+        pidList[i] = 0;
+    }
+}
+
+int getEmptyProcessIndex(){
+    int i = 0;
+    for(i=0; i < MAXPROCESS; i++){
+        if(pidList[i] == 0)
+            return i;
+    }
+    return -1;
+}
+
 
 
 
@@ -156,12 +201,26 @@ void checkConsumers(){
     }
 }
 
+void setEventHandlers(){
+    
+    signal(SIGALRM, timerDone); //Timer done
+
+
+    signal(SIGKILL, childEvent);
+    signal(SIGINT, childEvent);
+
+    struct sigaction sigAction;
+    memset(&sigAction, 0, sizeof(sigAction));
+    sigAction.sa_handler = childEvent;
+}
+
 int main(int argc, char *argv[]){
     int opt;
 
 
 
-    signal(SIGALRM, timerDone); //Timer done
+    setEventHandlers();
+
 
 
     if ( argc <= 1){
@@ -213,6 +272,8 @@ int main(int argc, char *argv[]){
     setSharedSemaphoreArray();
     setBufferMemory();
     setLogFile();
+
+    
 
     clearSharedMemory();
     clearSemaphore();
