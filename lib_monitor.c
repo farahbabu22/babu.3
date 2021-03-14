@@ -4,12 +4,52 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <time.h>
 #include "lib_monitor.h"
 
 int shSMID; // shared semaphore id
+char *shLogptr;
+int logID;
+int *bufferPtr;
+int shBufferID;
 
+
+
+
+
+void setSharedMem(){
+    //key_t logKey = ftok();
+}
+
+void setLogFileLib(){
+    key_t logKey = ftok("lib_monitor.c", 'a');
+
+    logID = shmget(logKey, sizeof(char) * 64, IPC_EXCL);
+
+    if(logID == -1){
+        perror("lib_monitor.c: Error: Issue with creating memory for sharing log file name");
+        exit(EXIT_FAILURE);
+    }
+
+    shLogptr = (char *)shmat(logID, 0, 0);
+
+    if(shLogptr == (char *) -1){
+        perror("lib_monitor.c: Error: Issue in attaching to shared memory for log file");
+        exit(EXIT_FAILURE);
+    }
+}
 
 void produce(){
+    setLogFileLib();
+
+    semWait(CONSUMERS_WAITING);
+    semSignal(PRODUCERS_WORKING);
+    semWait(FREE_SPACE);
+    semWait(MUTEX);
+
+    srand(time(NULL));
+
+
 
 }
 

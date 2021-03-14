@@ -9,10 +9,14 @@
 #define NUMSEMS 7
 #define MUTEX 0
 #define FREE_PROCESS 19
-#define CONSUMERS_WAITING 5
-#define CONSUMERS_WORKING 5
+#define CONSUMERS_WAITING 3
+#define CONSUMERS_WORKING 6
 #define MAX_PRODUCERS 6
+#define PRODUCERS_WORKING 5
 
+
+void setSharedMem();
+void setLogFileLib();
 void produce();
 void consume();
 void semWait(int);
