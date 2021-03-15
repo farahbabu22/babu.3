@@ -1,1 +1,85 @@
-# babu.3
+# Assignment 3 - Semaphores and Message Passing
+
+To understand how to use semaphores with producer-consumer problem using monitors
+
+### Assignment details
+* Author: Farah Babu
+* SSO ID: FBKZX
+* email id: fbkzx@umsystem.edu
+
+### Files delivered
+* monitor.c
+* lib_monitor.h
+* lib_monitor.c
+* producer.c
+* consumer.c
+* makefile
+* README
+
+### Design of the assignment
+#### Monitor.c
+* The main executable program of the assignment
+* Takes in the user arguments from the command line
+* Used to initialize semaphores / shared memory used for interprocess communication
+* Makes use of the following APIs
+- getopt - parse command-line arguments
+- ftok - generate key for semaphores and shared memory
+- semget - create semaphore
+- semctl - control options on the semaphore
+- shmget - initialize shared memory
+- shmat - to attach shared memory
+- fork - to fork child processes
+- execl - to execute a system command
+- signal - for signal handling like SIGINT / SIGKILL / SIGALRM
+- alarm - for a timeout limit
+- perror - print error to the console
+
+#### lib_monitor.h
+* header file that will be used to create a statically linked library
+* defines the constants and functions of lib_monitor.c
+
+
+
+#### lib_monitor.c
+* contains the producer / consumer method to be used across the assignment
+* contains the implementation of sem wait and sem signal logic
+
+#### producer.c
+* includes the statically linked library of lib_monitor
+* invokes producer method
+
+#### consumer.c
+* includes the statically linked library of lib_monitor
+* invokes consumer method
+
+#### makefile
+* contains make all / make clean options
+* additionally static linking is performed using ar command of Linux
+
+### Execution
+Clean the entire project using the below command
+> make clean
+
+make the project
+> make
+
+run the project
+For help
+> ./monitor -h
+
+With time option
+> ./monitor -t 98
+
+with consumer and producer options
+> ./monitor -p <m> -c <n>
+
+with logfile
+> ./monitor -o <logfile>
+
+
+### Issues with the assignment
+* logfile is being generated for the producers when the monitor program is run with the time option
+* consumer program once completed wasn't reading the buffer the threads were not coming out wait to continue. 
+* the program had to be killed
+* I believe if consumer is fixed the program would be able to execute properly. 
+* have applied the semaphore with the monitor condition as in the lectures provided. 
