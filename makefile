@@ -4,7 +4,7 @@ CXXFLAGS= -g -Wall -pthread -lm
 LIBS = -l_monitor
 LIBSFLAGS = -L .
 
-all: monitor
+all: monitor producer consumer
 
 monitor: $(CLASSES) monitor.o lib_monitor.a
 	$(CC) $(LIBSFLAGS) -o $@  monitor.o $(CXXFLAGS) $(LIBS)
@@ -31,4 +31,4 @@ lib_monitor.a: lib_monitor.o
 	ar rcs $@ $^
 
 clean:
-	rm -rf *.o *.log *.gch *.swp *.dSYM *.tar.gz monitor.o monitor lib_monitor.a
+	rm -rf *.o *.log *.gch *.swp *.dSYM *.tar.gz monitor.o monitor lib_monitor.a logfile producer consumer

@@ -15,7 +15,7 @@
 int countProducers = 2;
 int countConsumers = 6;
 int timeoutLimit = 100;
-char *logfile = "logfile";
+char logfile[64];
 int shSMID; // shared semaphore id
 int shBufferID; // shared buffer id for shared memory functions
 int logID;
@@ -41,7 +41,8 @@ void timerDone(){
 }
 
 void cleanAll(){
-
+    killAll();
+    exit(EXIT_SUCCESS);
 }
 
 void clearSemaphore(){
@@ -90,7 +91,7 @@ void clearSharedMemory(){
 void setBufferMemory(){
     key_t shBufferKey = ftok("consumer.c", 'a');
 
-    shBufferID = shmget(shBufferKey, sizeof(int) * MAX_PRODUCERS, IPC_CREAT | 0666);
+    shBufferID = shmget(shBufferKey, sizeof(int) * 6, IPC_CREAT | 0666);
 
     if(shBufferKey == -1){
         perror("monitor.c: Error: Issue in creating shared memory for buffer");
@@ -151,8 +152,8 @@ void childEvent(int signum){
     pid_t pid;
     while((pid = waitpid((pid_t)(-1), 0, WNOHANG)) > 0){
         removeProcessPID(pid);
-        semWait(CONSUMERS_WORKING);
-        semSignal(FREE_PROCESS);
+        //semWait(CONSUMERS_WORKING);
+        //semSignal(FREE_PROCESS);
     }
 }
 
@@ -206,12 +207,37 @@ void setEventHandlers(){
     signal(SIGALRM, timerDone); //Timer done
 
 
-    signal(SIGKILL, childEvent);
-    signal(SIGINT, childEvent);
+    signal(SIGKILL, cleanAll);
+    signal(SIGINT, cleanAll);
 
     struct sigaction sigAction;
     memset(&sigAction, 0, sizeof(sigAction));
     sigAction.sa_handler = childEvent;
+    sigaction(SIGCHLD, &sigAction, NULL);
+}
+
+void createProducers(){
+    int i, position;
+    for(i = 0; i < countProducers; i++){
+        semWait(FREE_PROCESS);
+        position = getEmptyProcessIndex();
+        pidList[position] = fork();
+        if(pidList[position] == 0){
+            execl("./producer", "./producer", (char*)0);
+        }
+    }
+}
+
+void createConsumers(){
+    int i, position;
+    for(i = 0; i < countConsumers; i++){
+        semWait(FREE_PROCESS);
+        position = getEmptyProcessIndex();
+        pidList[position] = fork();
+        if(pidList[position] == 0){
+            execl("./consumer", "./consumer", (char*)0);
+        }
+    }
 }
 
 int main(int argc, char *argv[]){
@@ -229,6 +255,8 @@ int main(int argc, char *argv[]){
         exit(EXIT_FAILURE);
         return 1;
     }
+
+    strcpy(logfile, "logfile");
     
     
     while ((opt = getopt(argc, argv, "ho:p:c:t:")) != -1){
@@ -239,7 +267,7 @@ int main(int argc, char *argv[]){
                     return 0;
                     break;
             case 'o':
-                    logfile = optarg;
+                    strcpy(logfile, optarg);
                     printf("\nmaking use of logfile:%s", logfile);
                     break;
             case 'p':
@@ -273,7 +301,20 @@ int main(int argc, char *argv[]){
     setBufferMemory();
     setLogFile();
 
-    
+
+
+    initalizeProcessList();
+
+    createProducers();
+
+    createConsumers();
+    printf("Set up completed");
+    fflush(stdout);
+    while(1){
+        if(semctl(shSMID, CONSUMERS_WORKING, GETVAL, NULL) == 0){
+            break;
+        }
+    }
 
     clearSharedMemory();
     clearSemaphore();

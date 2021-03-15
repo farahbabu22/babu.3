@@ -3,9 +3,25 @@
 #include <errno.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/types.h>
 #include <sys/sem.h>
+#include <signal.h>
 #include <time.h>
+#include <unistd.h>
 #include "lib_monitor.h"
+
+#define FREE_SPACE 1
+#define BUFFER_IN 2
+#define NEXTIN 4
+#define NEXTOUT 5
+#define NUMSEMS 7
+#define MUTEX 0
+#define FREE_PROCESS 19 
+#define CONSUMERS_WAITING 3
+#define CONSUMERS_WORKING 6
+#define MAX_PRODUCERS 6
+#define PRODUCERS_WORKING 5
+
 
 int shSMID; // shared semaphore id
 char *shLogptr;
@@ -15,10 +31,37 @@ int shBufferID;
 
 
 
+void detachMemory(){
+    shmdt(bufferPtr);
+    shmdt(shLogptr);
+}
+
+void cleanProducerConsumer(){
+    detachMemory();
+    exit(EXIT_SUCCESS);
+}
+
+
+
 
 
 void setSharedMem(){
     //key_t logKey = ftok();
+    key_t shBufferKey = ftok("consumer.c", 'a');
+
+    shBufferID = shmget(shBufferKey, sizeof(int) * 6, IPC_EXCL);
+    if(shBufferID == -1){
+        perror("lib_monitor.c: Error: Issue with creating memory for sharing buffer for producer");
+        exit(EXIT_FAILURE);
+    }
+
+    bufferPtr = (int *)shmat(shBufferID, 0, 0);
+    if(bufferPtr == (int *) -1){
+        perror("lib_monitor.c: Error: Issue in attaching to shared memory");
+        exit(EXIT_FAILURE);
+    }
+
+
 }
 
 void setLogFileLib(){
@@ -47,19 +90,100 @@ void produce(){
     semWait(FREE_SPACE);
     semWait(MUTEX);
 
-    srand(time(NULL));
+    srand(time(NULL));  //initalize random
+
+    signal(SIGINT, cleanProducerConsumer);
 
 
+
+
+    //Use to calcuate the time for the run
+    time_t time_start, time_end;
+    struct tm *time_start_info;
+    struct tm *time_end_info;
+
+    setSharedMem();
+
+
+    FILE *logfileF;
+    logfileF = fopen(shLogptr, "a");
+
+    time(&time_start);
+    time_start_info = localtime(&time_start);
+
+    fprintf(logfileF, "%s : Producer process: Entering critical section", asctime(time_start_info));
+
+    int randomnumber = (rand() % 5);
+    sleep(randomnumber);
+
+    int generatedNumber = (rand() % 100);
+
+    bufferPtr[NEXTIN] = (bufferPtr[NEXTIN] + 1) % 4;
+
+    time(&time_end);
+    time_end_info = localtime(&time_end);
+
+
+    fprintf(logfileF, "%s: Producer process: Exiting ciritical section with generated number: %d", asctime(time_end_info), generatedNumber);
+
+
+    fclose(logfileF);
+
+
+    detachMemory();
+
+    semWait(PRODUCERS_WORKING);
+    semSignal(MUTEX);
+    semSignal(BUFFER_IN);
 
 }
 
 void consume(){
+    setLogFileLib();
 
+    signal(SIGINT, cleanProducerConsumer);
+    
+    semWait(BUFFER_IN);
+    semWait(MUTEX);
+
+
+    time_t time_start, time_end;
+    struct tm *time_start_info;
+    struct tm *time_end_info;
+
+    int readNum = 0;
+
+    setSharedMem();
+
+    readNum = bufferPtr[bufferPtr[NEXTOUT]];
+
+    FILE *logfileF;
+    logfileF = fopen(shLogptr, "a");
+
+    fprintf(logfileF, "%s: The following was read by the consumer process(%d) %d:", asctime(time_start_info),  bufferPtr[NEXTOUT], readNum);
+
+    int randomnumber = (rand() % 10);
+    sleep(randomnumber);
+
+    time(&time_end);
+    time_end_info = localtime(&time_end);
+
+    fprintf(logfileF, "%s: The following value has been consumed: %d", asctime(time_end_info), readNum);
+    fclose(logfileF);
+
+    detachMemory();
+
+    semSignal(MUTEX);
+    semSignal(FREE_SPACE);
+    semWait(CONSUMERS_WORKING);
+
+
+    
 }
 
-void semOperation(int x, int ops){
+void semOperation(int x, short ops){
         key_t shSEMKey = ftok("producer.c", 'a');
-        shSMID = semget(shSEMKey, NUMSEMS, IPC_CREAT | 0666);
+        shSMID = semget(shSEMKey, NUMSEMS, 0);
 
         if(shSMID == -1){
             perror("lib_monitor.c: Error: Issue in semget creation..exiting");

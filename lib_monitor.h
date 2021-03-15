@@ -21,7 +21,7 @@ void produce();
 void consume();
 void semWait(int);
 void semSignal(int);
-void semOperation(int, int);
+void semOperation(int, short);
 void printMonitor();
 
 #endif
