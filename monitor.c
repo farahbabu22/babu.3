@@ -11,6 +11,11 @@
 
 #include "lib_monitor.h"
 
+/*
+ * Author: Farah Babu
+ * SSO ID: FBKZX
+ * email ID: fbkzx@umsystems.edu
+ */
 
 int countProducers = 2;
 int countConsumers = 6;
@@ -25,6 +30,7 @@ pid_t *pidList;
 
 extern int errno;
 
+//To kill all processes
 void killAll(){
 
     int i = 0;
@@ -36,19 +42,25 @@ void killAll(){
     //exit(EXIT_SUCCESS);
 }
 
+//Run when the timer done
 void timerDone(){
     killAll();
 }
 
+//To clean all processes
 void cleanAll(){
     killAll();
     exit(EXIT_SUCCESS);
 }
 
+
+//remove memory for the semaphore
 void clearSemaphore(){
     semctl(shSMID, 0, IPC_RMID, NULL);
 }
 
+
+//set the shared memory
 void setSharedSemaphoreArray(){
     key_t shSEMKey = ftok("producer.c", 'a');
 
@@ -67,7 +79,7 @@ void setSharedSemaphoreArray(){
     semctl(shSMID, CONSUMERS_WORKING, SETVAL, countConsumers);
 }
 
-
+//clear log file shared memory
 void clearLogFileShm(){
     if(shmdt(shLogptr) == -1){
         perror("monitor.c: Error: Failed to detached logfile shm");
@@ -77,6 +89,8 @@ void clearLogFileShm(){
         perror("monitor.c: Error: Failed to remove shared buffer segment");
     }
 }
+
+//clear shared memory for the logfile name
 void clearSharedMemory(){
     if(shmdt(shmptr) == -1){
         perror("monitor.c: Error: Failed to detach");
@@ -88,6 +102,7 @@ void clearSharedMemory(){
 
 }
 
+//Shared buffer
 void setBufferMemory(){
     key_t shBufferKey = ftok("consumer.c", 'a');
 
@@ -111,6 +126,7 @@ void setBufferMemory(){
     shmptr[NEXTOUT] = 0;
 }
 
+//Log file
 void setLogFile(){
     key_t logKey = ftok("lib_monitor.c", 'a');
 
@@ -138,6 +154,7 @@ void setLogFile(){
 
 }
 
+//Remove the process id
 void removeProcessPID(pid_t p){
     int i = 0;
     for(i=0; i < MAXPROCESS; i++){
@@ -148,6 +165,7 @@ void removeProcessPID(pid_t p){
     }
 }
 
+//Clear child event
 void childEvent(int signum){
     pid_t pid;
     while((pid = waitpid((pid_t)(-1), 0, WNOHANG)) > 0){
@@ -157,7 +175,7 @@ void childEvent(int signum){
     }
 }
 
-
+//Initalize all the processes
 void initalizeProcessList(){
     int i = 0;
     pidList = malloc(sizeof(pid_t)*MAXPROCESS);
@@ -166,6 +184,7 @@ void initalizeProcessList(){
     }
 }
 
+//Get the empty index
 int getEmptyProcessIndex(){
     int i = 0;
     for(i=0; i < MAXPROCESS; i++){
@@ -188,6 +207,7 @@ void displayHelpMenu(){
     fflush(stdout);
 }
 
+//Check if producers fall in the limit
 void checkProducers(){
     if (countProducers > MAXPROCESS - 1){
         //set producers to a lower limit
@@ -195,6 +215,7 @@ void checkProducers(){
     }
 }
 
+//check if consumers are greater than the producers
 void checkConsumers(){
     // ensuring consumers are more than producers resetting the value forcefully
     if(countProducers >= countConsumers){
@@ -216,6 +237,9 @@ void setEventHandlers(){
     sigaction(SIGCHLD, &sigAction, NULL);
 }
 
+//fork
+//excel
+//To spawn off producer processes
 void createProducers(){
     int i, position;
     for(i = 0; i < countProducers; i++){
@@ -228,6 +252,9 @@ void createProducers(){
     }
 }
 
+//fork
+//execl
+//To spawn off child processes
 void createConsumers(){
     int i, position;
     for(i = 0; i < countConsumers; i++){
