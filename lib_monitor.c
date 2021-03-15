@@ -24,13 +24,13 @@
 
 
 int shSMID; // shared semaphore id
-char *shLogptr;
-int logID;
-int *bufferPtr;
-int shBufferID;
+char *shLogptr; //shared memory for the log file
+int logID; // shm id for the log file
+int *bufferPtr; // semaphores
+int shBufferID; // shm id memory for the buffer
 
 
-
+//shmdt to detach shared memory
 void detachMemory(){
     shmdt(bufferPtr);
     shmdt(shLogptr);
@@ -44,7 +44,7 @@ void cleanProducerConsumer(){
 
 
 
-
+//set up shared memory for both producer / consumer
 void setSharedMem(){
     //key_t logKey = ftok();
     key_t shBufferKey = ftok("consumer.c", 'a');
@@ -64,6 +64,7 @@ void setSharedMem(){
 
 }
 
+//set up shared memory for the log file for both producer / consumer
 void setLogFileLib(){
     key_t logKey = ftok("lib_monitor.c", 'a');
 
@@ -82,6 +83,8 @@ void setLogFileLib(){
     }
 }
 
+
+//Producer shared library
 void produce(){
     setLogFileLib();
 
@@ -138,6 +141,8 @@ void produce(){
 
 }
 
+
+//Consumer shared library
 void consume(){
     setLogFileLib();
 
@@ -181,6 +186,7 @@ void consume(){
     
 }
 
+//generalizing the sem operations for sem buffer
 void semOperation(int x, short ops){
         key_t shSEMKey = ftok("producer.c", 'a');
         shSMID = semget(shSEMKey, NUMSEMS, 0);
@@ -200,10 +206,12 @@ void semOperation(int x, short ops){
 
 }
 
+//called during semwait
 void semWait(int x){
     semOperation(x, -1);
 }
 
+//called for sem signal
 void semSignal(int x){
     semOperation(x, 1);
 }
